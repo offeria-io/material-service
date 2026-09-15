@@ -19,10 +19,14 @@ import java.util.UUID;
 public interface MaterialRepository extends JpaRepository<Material, UUID>, JpaSpecificationExecutor<Material> {
 
     /**
-     * Search materials by name (English or Arabic) with case-insensitive partial matching.
+     * Search materials by canonical English name or preferred Iraqi-market name
+     * using case-insensitive partial matching.
+     *
+     * This preserves the existing API search behavior while the dedicated
+     * Material Knowledge Base search strategy is implemented separately.
      */
     @Query("SELECT m FROM Material m WHERE " +
-           "LOWER(m.nameEn) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
-           "LOWER(m.nameAr) LIKE LOWER(CONCAT('%', :query, '%'))")
+            "LOWER(m.canonicalEnglishName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+            "LOWER(m.preferredIraqiName) LIKE LOWER(CONCAT('%', :query, '%'))")
     Page<Material> searchByName(@Param("query") String query, Pageable pageable);
 }

@@ -9,9 +9,12 @@ import offeria.material_service.repository.MaterialRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import offeria.material_service.domain.enums.MaterialSource;
+import offeria.material_service.domain.enums.MaterialStatus;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -42,8 +45,8 @@ class MaterialServiceImplTest {
         materialId = UUID.randomUUID();
         material = Material.builder()
                 .id(materialId)
-                .nameEn("Steel")
-                .nameAr("حديد")
+                .canonicalEnglishName("Steel")
+                .preferredIraqiName("حديد")
                 .unit("kg")
                 .build();
 
@@ -62,7 +65,7 @@ class MaterialServiceImplTest {
     }
 
     @Test
-    void createMaterial_ShouldReturnSavedMaterial() {
+    void createMaterial_ShouldSetDefaultStatusAndSource() {
         when(materialMapper.toEntity(any())).thenReturn(material);
         when(materialRepository.save(any())).thenReturn(material);
         when(materialMapper.toResponseDTO(any())).thenReturn(responseDTO);
@@ -71,7 +74,16 @@ class MaterialServiceImplTest {
 
         assertNotNull(result);
         assertEquals(materialId, result.getId());
-        verify(materialRepository, times(1)).save(any());
+
+        ArgumentCaptor<Material> materialCaptor =
+                ArgumentCaptor.forClass(Material.class);
+
+        verify(materialRepository, times(1)).save(materialCaptor.capture());
+
+        Material savedMaterial = materialCaptor.getValue();
+
+        assertEquals(MaterialStatus.PENDING_REVIEW, savedMaterial.getStatus());
+        assertEquals(MaterialSource.MANUAL, savedMaterial.getSource());
     }
 
     @Test

@@ -21,7 +21,7 @@ public class MaterialRequestDTO {
     @Size(min = 2, max = 255, message = "English name must be between 2 and 255 characters")
     private String nameEn;
 
-    @NotBlank(message = "Arabic name is required")
+
     @Size(min = 2, max = 255, message = "Arabic name must be between 2 and 255 characters")
     private String nameAr;
 
