@@ -13,6 +13,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import offeria.material_service.domain.enums.MaterialSource;
+import offeria.material_service.domain.enums.MaterialStatus;
 
 import java.util.UUID;
 
@@ -32,7 +34,12 @@ public class MaterialServiceImpl implements MaterialService {
     @Transactional
     public MaterialResponseDTO createMaterial(MaterialRequestDTO requestDTO) {
         log.info("Creating new material: {}", requestDTO.getNameEn());
+
         Material material = materialMapper.toEntity(requestDTO);
+
+        material.setStatus(MaterialStatus.PENDING_REVIEW);
+        material.setSource(MaterialSource.MANUAL);
+
         Material savedMaterial = materialRepository.save(material);
         return materialMapper.toResponseDTO(savedMaterial);
     }
