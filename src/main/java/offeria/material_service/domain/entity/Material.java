@@ -8,6 +8,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -78,6 +80,10 @@ public class Material {
     @Enumerated(EnumType.STRING)
     @Column(name = "source", nullable = false, length = 50)
     private MaterialSource source;
+
+    @OneToMany(mappedBy = "material")
+    @Builder.Default
+    private List<MaterialAlias> aliases = new ArrayList<>();
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
