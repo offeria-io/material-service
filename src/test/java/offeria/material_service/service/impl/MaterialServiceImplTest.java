@@ -1,11 +1,14 @@
 package offeria.material_service.service.impl;
 
 import offeria.material_service.domain.entity.Material;
+import offeria.material_service.domain.enums.MaterialSource;
+import offeria.material_service.domain.enums.MaterialStatus;
 import offeria.material_service.dto.request.MaterialRequestDTO;
 import offeria.material_service.dto.response.MaterialResponseDTO;
 import offeria.material_service.exception.ResourceNotFoundException;
 import offeria.material_service.mapper.MaterialMapper;
 import offeria.material_service.repository.MaterialRepository;
+import offeria.material_service.service.normalization.MaterialNameNormalizer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,8 +16,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import offeria.material_service.domain.enums.MaterialSource;
-import offeria.material_service.domain.enums.MaterialStatus;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -31,6 +32,9 @@ class MaterialServiceImplTest {
 
     @Mock
     private MaterialMapper materialMapper;
+
+    @Mock
+    private MaterialNameNormalizer materialNameNormalizer;
 
     @InjectMocks
     private MaterialServiceImpl materialService;
@@ -87,6 +91,27 @@ class MaterialServiceImplTest {
     }
 
     @Test
+    void createMaterial_ShouldPopulateNormalizedNames() {
+        when(materialMapper.toEntity(requestDTO)).thenReturn(material);
+        when(materialNameNormalizer.normalizeEnglish("Steel")).thenReturn("steel");
+        when(materialNameNormalizer.normalizeArabic("حديد")).thenReturn("حديد");
+        when(materialRepository.save(any(Material.class))).thenReturn(material);
+        when(materialMapper.toResponseDTO(material)).thenReturn(responseDTO);
+
+        materialService.createMaterial(requestDTO);
+
+        ArgumentCaptor<Material> materialCaptor =
+                ArgumentCaptor.forClass(Material.class);
+
+        verify(materialRepository).save(materialCaptor.capture());
+
+        Material savedMaterial = materialCaptor.getValue();
+
+        assertEquals("steel", savedMaterial.getNormalizedEnglishName());
+        assertEquals("حديد", savedMaterial.getNormalizedIraqiName());
+    }
+
+    @Test
     void getMaterialById_WhenFound_ShouldReturnMaterial() {
         when(materialRepository.findById(materialId)).thenReturn(Optional.of(material));
         when(materialMapper.toResponseDTO(material)).thenReturn(responseDTO);
@@ -102,5 +127,37 @@ class MaterialServiceImplTest {
         when(materialRepository.findById(materialId)).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> materialService.getMaterialById(materialId));
+    }
+
+    @Test
+    void updateMaterial_ShouldRecalculateNormalizedNames() {
+        when(materialRepository.findById(materialId)).thenReturn(Optional.of(material));
+
+        doAnswer(invocation -> {
+            Material target = invocation.getArgument(1);
+            target.setCanonicalEnglishName("  OIL   Filter  ");
+            target.setPreferredIraqiName("  فلتر   دهن  ");
+            return null;
+        }).when(materialMapper).updateEntity(requestDTO, material);
+
+        when(materialNameNormalizer.normalizeEnglish("  OIL   Filter  "))
+                .thenReturn("oil filter");
+        when(materialNameNormalizer.normalizeArabic("  فلتر   دهن  "))
+                .thenReturn("فلتر دهن");
+
+        when(materialRepository.save(any(Material.class))).thenReturn(material);
+        when(materialMapper.toResponseDTO(material)).thenReturn(responseDTO);
+
+        materialService.updateMaterial(materialId, requestDTO);
+
+        ArgumentCaptor<Material> materialCaptor =
+                ArgumentCaptor.forClass(Material.class);
+
+        verify(materialRepository).save(materialCaptor.capture());
+
+        Material savedMaterial = materialCaptor.getValue();
+
+        assertEquals("oil filter", savedMaterial.getNormalizedEnglishName());
+        assertEquals("فلتر دهن", savedMaterial.getNormalizedIraqiName());
     }
 }
