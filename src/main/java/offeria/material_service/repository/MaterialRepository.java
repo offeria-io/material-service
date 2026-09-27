@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.UUID;
+import java.util.Optional;
 
 /**
  * Repository for Material entity.
@@ -29,4 +30,8 @@ public interface MaterialRepository extends JpaRepository<Material, UUID>, JpaSp
             "LOWER(m.canonicalEnglishName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
             "LOWER(m.preferredIraqiName) LIKE LOWER(CONCAT('%', :query, '%'))")
     Page<Material> searchByName(@Param("query") String query, Pageable pageable);
+
+    Optional<Material> findByNormalizedEnglishName(String normalizedEnglishName);
+
+    Optional<Material> findByNormalizedIraqiName(String normalizedIraqiName);
 }
