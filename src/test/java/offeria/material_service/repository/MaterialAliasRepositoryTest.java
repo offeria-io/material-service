@@ -13,6 +13,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -216,5 +217,58 @@ class MaterialAliasRepositoryTest {
                         MaterialStatus.APPROVED
                 )
         ).isInstanceOf(IncorrectResultSizeDataAccessException.class);
+    }
+
+    @Test
+    void shouldNotFindPendingOrRejectedAliasWhenLookingUpApprovedAlias() {
+        Material material = Material.builder()
+                .canonicalEnglishName("Oil Filter")
+                .normalizedEnglishName("oil filter")
+                .unit("PCS")
+                .status(MaterialStatus.APPROVED)
+                .source(MaterialSource.MANUAL)
+                .build();
+
+        materialRepository.saveAndFlush(material);
+
+        MaterialAlias pendingAlias = MaterialAlias.builder()
+                .material(material)
+                .alias("Engine Filter")
+                .normalizedAlias("engine filter")
+                .language(AliasLanguage.ENGLISH)
+                .aliasType(AliasType.SYNONYM)
+                .source(MaterialSource.IMPORT)
+                .status(MaterialStatus.PENDING_REVIEW)
+                .preferred(false)
+                .build();
+
+        MaterialAlias rejectedAlias = MaterialAlias.builder()
+                .material(material)
+                .alias("Rejected Engine Filter")
+                .normalizedAlias("rejected engine filter")
+                .language(AliasLanguage.ENGLISH)
+                .aliasType(AliasType.SYNONYM)
+                .source(MaterialSource.IMPORT)
+                .status(MaterialStatus.REJECTED)
+                .preferred(false)
+                .build();
+
+        materialAliasRepository.saveAndFlush(pendingAlias);
+        materialAliasRepository.saveAndFlush(rejectedAlias);
+
+        Optional<MaterialAlias> pendingResult =
+                materialAliasRepository.findByNormalizedAliasAndStatus(
+                        "engine filter",
+                        MaterialStatus.APPROVED
+                );
+
+        Optional<MaterialAlias> rejectedResult =
+                materialAliasRepository.findByNormalizedAliasAndStatus(
+                        "rejected engine filter",
+                        MaterialStatus.APPROVED
+                );
+
+        assertThat(pendingResult).isEmpty();
+        assertThat(rejectedResult).isEmpty();
     }
 }
