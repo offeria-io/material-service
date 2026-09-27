@@ -3,12 +3,14 @@ package offeria.material_service.service.impl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import offeria.material_service.domain.entity.Material;
+import offeria.material_service.domain.enums.AliasLanguage;
 import offeria.material_service.domain.enums.MaterialSource;
 import offeria.material_service.domain.enums.MaterialStatus;
 import offeria.material_service.dto.request.MaterialRequestDTO;
 import offeria.material_service.dto.response.MaterialResponseDTO;
 import offeria.material_service.exception.ResourceNotFoundException;
 import offeria.material_service.mapper.MaterialMapper;
+import offeria.material_service.repository.MaterialAliasRepository;
 import offeria.material_service.repository.MaterialRepository;
 import offeria.material_service.service.MaterialService;
 import offeria.material_service.service.normalization.MaterialNameNormalizer;
@@ -17,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -29,6 +32,7 @@ import java.util.UUID;
 public class MaterialServiceImpl implements MaterialService {
 
     private final MaterialRepository materialRepository;
+    private final MaterialAliasRepository materialAliasRepository;
     private final MaterialMapper materialMapper;
     private final MaterialNameNormalizer materialNameNormalizer;
 
@@ -113,5 +117,36 @@ public class MaterialServiceImpl implements MaterialService {
         material.setNormalizedIraqiName(
                 materialNameNormalizer.normalizeArabic(material.getPreferredIraqiName())
         );
+    }
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<MaterialResponseDTO> findByNormalizedName(
+            String name,
+            AliasLanguage language
+    ) {
+        String normalizedName = materialNameNormalizer.normalize(name, language);
+
+        if (normalizedName == null) {
+            return Optional.empty();
+        }
+
+        Optional<Material> material = switch (language) {
+            case ENGLISH ->
+                    materialRepository.findByNormalizedEnglishName(normalizedName);
+            case ARABIC ->
+                    materialRepository.findByNormalizedIraqiName(normalizedName);
+        };
+
+        if (material.isPresent()) {
+            return material.map(materialMapper::toResponseDTO);
+        }
+
+        return materialAliasRepository
+                .findByNormalizedAliasAndStatus(
+                        normalizedName,
+                        MaterialStatus.APPROVED
+                )
+                .map(alias -> alias.getMaterial())
+                .map(materialMapper::toResponseDTO);
     }
 }

@@ -1,10 +1,12 @@
 package offeria.material_service.service;
 
+import offeria.material_service.domain.enums.AliasLanguage;
 import offeria.material_service.dto.request.MaterialRequestDTO;
 import offeria.material_service.dto.response.MaterialResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -36,4 +38,9 @@ public interface MaterialService {
      * Deletes a material from the system.
      */
     void deleteMaterial(UUID id);
+
+    Optional<MaterialResponseDTO> findByNormalizedName(
+            String name,
+            AliasLanguage language
+    );
 }

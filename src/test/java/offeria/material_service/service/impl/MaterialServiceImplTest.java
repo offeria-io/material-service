@@ -16,6 +16,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import offeria.material_service.domain.enums.AliasLanguage;
+import offeria.material_service.repository.MaterialAliasRepository;
+import offeria.material_service.domain.entity.MaterialAlias;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -26,6 +29,9 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class MaterialServiceImplTest {
+
+    @Mock
+    private MaterialAliasRepository materialAliasRepository;
 
     @Mock
     private MaterialRepository materialRepository;
@@ -159,5 +165,191 @@ class MaterialServiceImplTest {
 
         assertEquals("oil filter", savedMaterial.getNormalizedEnglishName());
         assertEquals("فلتر دهن", savedMaterial.getNormalizedIraqiName());
+    }
+    @Test
+    void findByNormalizedName_WhenEnglishMaterialMatches_ShouldReturnMaterial() {
+        when(materialNameNormalizer.normalize("  OIL   FILTER  ", AliasLanguage.ENGLISH))
+                .thenReturn("oil filter");
+
+        when(materialRepository.findByNormalizedEnglishName("oil filter"))
+                .thenReturn(Optional.of(material));
+
+        when(materialMapper.toResponseDTO(material))
+                .thenReturn(responseDTO);
+
+        Optional<MaterialResponseDTO> result =
+                materialService.findByNormalizedName(
+                        "  OIL   FILTER  ",
+                        AliasLanguage.ENGLISH
+                );
+
+        assertTrue(result.isPresent());
+        assertEquals(materialId, result.get().getId());
+
+        verify(materialRepository)
+                .findByNormalizedEnglishName("oil filter");
+
+        verifyNoInteractions(materialAliasRepository);
+    }
+    @Test
+    void findByNormalizedName_WhenDirectMaterialNotFound_ShouldReturnMaterialFromApprovedAlias() {
+        MaterialAlias alias = MaterialAlias.builder()
+                .material(material)
+                .alias("Engine Oil Filter")
+                .normalizedAlias("engine oil filter")
+                .status(MaterialStatus.APPROVED)
+                .source(MaterialSource.MANUAL)
+                .build();
+
+        when(materialNameNormalizer.normalize(
+                "  ENGINE   OIL FILTER  ",
+                AliasLanguage.ENGLISH
+        )).thenReturn("engine oil filter");
+
+        when(materialRepository.findByNormalizedEnglishName("engine oil filter"))
+                .thenReturn(Optional.empty());
+
+        when(materialAliasRepository.findByNormalizedAliasAndStatus(
+                "engine oil filter",
+                MaterialStatus.APPROVED
+        )).thenReturn(Optional.of(alias));
+
+        when(materialMapper.toResponseDTO(material))
+                .thenReturn(responseDTO);
+
+        Optional<MaterialResponseDTO> result =
+                materialService.findByNormalizedName(
+                        "  ENGINE   OIL FILTER  ",
+                        AliasLanguage.ENGLISH
+                );
+
+        assertTrue(result.isPresent());
+        assertEquals(materialId, result.get().getId());
+
+        verify(materialRepository)
+                .findByNormalizedEnglishName("engine oil filter");
+
+        verify(materialAliasRepository)
+                .findByNormalizedAliasAndStatus(
+                        "engine oil filter",
+                        MaterialStatus.APPROVED
+                );
+    }
+
+    @Test
+    void findByNormalizedName_WhenNoApprovedAliasExists_ShouldReturnEmpty() {
+        when(materialNameNormalizer.normalize(
+                "Pending Alias",
+                AliasLanguage.ENGLISH
+        )).thenReturn("pending alias");
+
+        when(materialRepository.findByNormalizedEnglishName("pending alias"))
+                .thenReturn(Optional.empty());
+
+        when(materialAliasRepository.findByNormalizedAliasAndStatus(
+                "pending alias",
+                MaterialStatus.APPROVED
+        )).thenReturn(Optional.empty());
+
+        Optional<MaterialResponseDTO> result =
+                materialService.findByNormalizedName(
+                        "Pending Alias",
+                        AliasLanguage.ENGLISH
+                );
+
+        assertTrue(result.isEmpty());
+
+        verify(materialAliasRepository)
+                .findByNormalizedAliasAndStatus(
+                        "pending alias",
+                        MaterialStatus.APPROVED
+                );
+
+        verify(materialAliasRepository, never())
+                .findByNormalizedAliasAndStatus(
+                        "pending alias",
+                        MaterialStatus.PENDING_REVIEW
+                );
+
+        verify(materialAliasRepository, never())
+                .findByNormalizedAliasAndStatus(
+                        "pending alias",
+                        MaterialStatus.REJECTED
+                );
+
+        verifyNoInteractions(materialMapper);
+    }
+
+    @Test
+    void findByNormalizedName_WhenInputIsBlank_ShouldReturnEmptyWithoutRepositoryLookup() {
+        when(materialNameNormalizer.normalize("   ", AliasLanguage.ENGLISH))
+                .thenReturn(null);
+
+        Optional<MaterialResponseDTO> result =
+                materialService.findByNormalizedName(
+                        "   ",
+                        AliasLanguage.ENGLISH
+                );
+
+        assertTrue(result.isEmpty());
+
+        verify(materialNameNormalizer)
+                .normalize("   ", AliasLanguage.ENGLISH);
+
+        verifyNoInteractions(materialRepository);
+        verifyNoInteractions(materialAliasRepository);
+        verifyNoInteractions(materialMapper);
+    }
+
+    @Test
+    void findByNormalizedName_WhenInputIsNull_ShouldReturnEmptyWithoutRepositoryLookup() {
+        when(materialNameNormalizer.normalize(null, AliasLanguage.ENGLISH))
+                .thenReturn(null);
+
+        Optional<MaterialResponseDTO> result =
+                materialService.findByNormalizedName(
+                        null,
+                        AliasLanguage.ENGLISH
+                );
+
+        assertTrue(result.isEmpty());
+
+        verify(materialNameNormalizer)
+                .normalize(null, AliasLanguage.ENGLISH);
+
+        verifyNoInteractions(materialRepository);
+        verifyNoInteractions(materialAliasRepository);
+        verifyNoInteractions(materialMapper);
+    }
+
+    @Test
+    void findByNormalizedName_WhenArabicMaterialMatches_ShouldReturnMaterial() {
+        when(materialNameNormalizer.normalize(
+                "  فلتر   دهن  ",
+                AliasLanguage.ARABIC
+        )).thenReturn("فلتر دهن");
+
+        when(materialRepository.findByNormalizedIraqiName("فلتر دهن"))
+                .thenReturn(Optional.of(material));
+
+        when(materialMapper.toResponseDTO(material))
+                .thenReturn(responseDTO);
+
+        Optional<MaterialResponseDTO> result =
+                materialService.findByNormalizedName(
+                        "  فلتر   دهن  ",
+                        AliasLanguage.ARABIC
+                );
+
+        assertTrue(result.isPresent());
+        assertEquals(materialId, result.get().getId());
+
+        verify(materialRepository)
+                .findByNormalizedIraqiName("فلتر دهن");
+
+        verify(materialRepository, never())
+                .findByNormalizedEnglishName(anyString());
+
+        verifyNoInteractions(materialAliasRepository);
     }
 }
