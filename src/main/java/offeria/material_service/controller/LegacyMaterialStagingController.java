@@ -5,9 +5,11 @@ import offeria.material_service.domain.entity.LegacyMaterialStaging;
 import offeria.material_service.domain.enums.LegacyMaterialImportStatus;
 import offeria.material_service.dto.request.LegacyMaterialReviewRequest;
 import offeria.material_service.dto.response.LegacyMaterialStagingResponse;
+import offeria.material_service.dto.response.LegacyMaterialPromotionResponse;
 import offeria.material_service.exception.ResourceNotFoundException;
 import offeria.material_service.repository.LegacyMaterialStagingRepository;
 import offeria.material_service.service.importing.LegacyMaterialReviewService;
+import offeria.material_service.service.importing.LegacyMaterialPromotionService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,6 +23,7 @@ public class LegacyMaterialStagingController {
 
     private final LegacyMaterialStagingRepository stagingRepository;
     private final LegacyMaterialReviewService reviewService;
+    private final LegacyMaterialPromotionService promotionService;
 
     @GetMapping
     public ResponseEntity<List<LegacyMaterialStagingResponse>> getByStatus(
@@ -65,6 +68,18 @@ public class LegacyMaterialStagingController {
         return ResponseEntity.ok(
                 LegacyMaterialStagingResponse.from(
                         reviewService.approve(id, notes)
+                )
+        );
+    }
+
+
+    @PostMapping("/{id}/promote")
+    public ResponseEntity<LegacyMaterialPromotionResponse> promote(
+            @PathVariable UUID id
+    ) {
+        return ResponseEntity.ok(
+                LegacyMaterialPromotionResponse.from(
+                        promotionService.promote(id)
                 )
         );
     }

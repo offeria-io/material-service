@@ -4,6 +4,7 @@ import offeria.material_service.domain.entity.LegacyMaterialStaging;
 import offeria.material_service.domain.enums.LegacyMaterialImportStatus;
 import offeria.material_service.repository.LegacyMaterialStagingRepository;
 import offeria.material_service.service.importing.LegacyMaterialReviewService;
+import offeria.material_service.service.importing.LegacyMaterialPromotionService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -15,9 +16,13 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import offeria.material_service.domain.entity.Material;
+import offeria.material_service.domain.enums.MaterialStatus;
+import offeria.material_service.domain.enums.MaterialSource;
 
 @WebMvcTest(LegacyMaterialStagingController.class)
 class LegacyMaterialStagingControllerTest {
@@ -30,6 +35,9 @@ class LegacyMaterialStagingControllerTest {
 
     @MockitoBean
     private LegacyMaterialReviewService reviewService;
+
+    @MockitoBean
+    private LegacyMaterialPromotionService promotionService;
 
     @Test
     void shouldListPendingRecords() throws Exception {
@@ -171,4 +179,36 @@ class LegacyMaterialStagingControllerTest {
                 )
                 .build();
     }
+
+    @Test
+    void shouldPromoteApprovedStagingRecord() throws Exception {
+        UUID stagingId = UUID.randomUUID();
+        UUID materialId = UUID.randomUUID();
+
+        Material material = Material.builder()
+                .id(materialId)
+                .canonicalEnglishName("Oil Filter")
+                .preferredIraqiName("فلتر دهن")
+                .unit("UNKNOWN")
+                .status(MaterialStatus.APPROVED)
+                .source(MaterialSource.LEGACY_EXCEL)
+                .build();
+
+        when(promotionService.promote(stagingId))
+                .thenReturn(material);
+
+        mockMvc.perform(
+                        post("/api/v1/legacy-material-staging/{id}/promote", stagingId)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.materialId").value(materialId.toString()))
+                .andExpect(jsonPath("$.canonicalEnglishName").value("Oil Filter"))
+                .andExpect(jsonPath("$.preferredIraqiName").value("فلتر دهن"))
+                .andExpect(jsonPath("$.unit").value("UNKNOWN"))
+                .andExpect(jsonPath("$.status").value("APPROVED"))
+                .andExpect(jsonPath("$.source").value("LEGACY_EXCEL"));
+
+        verify(promotionService).promote(stagingId);
+    }
+
 }
