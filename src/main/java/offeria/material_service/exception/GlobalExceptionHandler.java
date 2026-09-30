@@ -45,6 +45,23 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles invalid state transitions.
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalStateException(
+            IllegalStateException ex,
+            WebRequest request
+    ) {
+        log.warn("Invalid state transition: {}", ex.getMessage());
+        return buildErrorResponse(
+                ex.getMessage(),
+                HttpStatus.CONFLICT,
+                request,
+                null
+        );
+    }
+
+    /**
      * Handles all other unexpected exceptions.
      */
     @ExceptionHandler(Exception.class)
