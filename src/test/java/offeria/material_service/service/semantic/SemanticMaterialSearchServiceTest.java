@@ -4,6 +4,7 @@ import offeria.material_service.domain.entity.Material;
 import offeria.material_service.domain.enums.MaterialStatus;
 import offeria.material_service.dto.response.SemanticMaterialMatchResponse;
 import offeria.material_service.repository.MaterialRepository;
+import offeria.material_service.service.matching.MaterialMatchingService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -19,16 +20,19 @@ class SemanticMaterialSearchServiceTest {
 
     private MaterialRepository repository;
     private MaterialEmbeddingService embeddingService;
+    private MaterialMatchingService matchingService;
     private SemanticMaterialSearchService service;
 
     @BeforeEach
     void setUp() {
         repository = mock(MaterialRepository.class);
         embeddingService = mock(MaterialEmbeddingService.class);
+        matchingService = mock(MaterialMatchingService.class);
 
         service = new SemanticMaterialSearchService(
                 repository,
-                embeddingService
+                embeddingService,
+                matchingService
         );
 
         ReflectionTestUtils.setField(service, "threshold", 0.65);
@@ -96,6 +100,37 @@ class SemanticMaterialSearchServiceTest {
         );
 
         verifyNoInteractions(repository);
+    }
+
+
+    @Test
+    void shouldNotUseSemanticSearchWhenExactMatchExists() {
+        when(matchingService.findExactMatch("steel pipe"))
+                .thenReturn(java.util.Optional.of(
+                        mock(offeria.material_service.dto.response.MaterialMatchResponse.class)
+                ));
+
+        assertTrue(service.search("steel pipe").isEmpty());
+
+        verifyNoInteractions(repository);
+        verifyNoInteractions(embeddingService);
+        verify(matchingService, never()).findSimilar(anyString());
+    }
+
+    @Test
+    void shouldNotUseSemanticSearchWhenSimilarMatchExists() {
+        when(matchingService.findExactMatch("industrial pipe"))
+                .thenReturn(java.util.Optional.empty());
+
+        when(matchingService.findSimilar("industrial pipe"))
+                .thenReturn(List.of(
+                        mock(offeria.material_service.dto.response.MaterialMatchResponse.class)
+                ));
+
+        assertTrue(service.search("industrial pipe").isEmpty());
+
+        verifyNoInteractions(repository);
+        verifyNoInteractions(embeddingService);
     }
 
     private Material material(

@@ -5,6 +5,7 @@ import offeria.material_service.domain.entity.Material;
 import offeria.material_service.domain.enums.MaterialStatus;
 import offeria.material_service.dto.response.SemanticMaterialMatchResponse;
 import offeria.material_service.repository.MaterialRepository;
+import offeria.material_service.service.matching.MaterialMatchingService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +18,7 @@ public class SemanticMaterialSearchService {
 
     private final MaterialRepository materialRepository;
     private final MaterialEmbeddingService embeddingService;
+    private final MaterialMatchingService matchingService;
 
     @Value("${offeria.ai.material.semantic.threshold:0.65}")
     private double threshold;
@@ -31,8 +33,18 @@ public class SemanticMaterialSearchService {
             );
         }
 
+        String trimmedQuery = query.trim();
+
+        if (matchingService.findExactMatch(trimmedQuery).isPresent()) {
+            return List.of();
+        }
+
+        if (!matchingService.findSimilar(trimmedQuery).isEmpty()) {
+            return List.of();
+        }
+
         float[] queryEmbedding =
-                embeddingService.embed(query.trim());
+                embeddingService.embed(trimmedQuery);
 
         return materialRepository.findByStatus(MaterialStatus.APPROVED)
                 .stream()
