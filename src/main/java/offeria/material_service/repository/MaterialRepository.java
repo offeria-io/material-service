@@ -11,6 +11,9 @@ import org.springframework.stereotype.Repository;
 
 import java.util.UUID;
 import java.util.Optional;
+import java.util.List;
+
+import offeria.material_service.domain.enums.MaterialStatus;
 
 /**
  * Repository for Material entity.
@@ -34,4 +37,6 @@ public interface MaterialRepository extends JpaRepository<Material, UUID>, JpaSp
     Optional<Material> findByNormalizedEnglishName(String normalizedEnglishName);
 
     Optional<Material> findByNormalizedIraqiName(String normalizedIraqiName);
+
+    List<Material> findByStatus(MaterialStatus status);
 }

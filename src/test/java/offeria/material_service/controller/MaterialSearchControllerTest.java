@@ -3,6 +3,7 @@ package offeria.material_service.controller;
 import offeria.material_service.domain.enums.MaterialMatchType;
 import offeria.material_service.dto.response.MaterialMatchResponse;
 import offeria.material_service.service.matching.MaterialMatchingService;
+import offeria.material_service.service.semantic.SemanticMaterialSearchService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,11 +25,14 @@ class MaterialSearchControllerTest {
     @Mock
     private MaterialMatchingService matchingService;
 
+    @Mock
+    private SemanticMaterialSearchService semanticSearchService;
+
     private MaterialSearchController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new MaterialSearchController(matchingService);
+        controller = new MaterialSearchController(matchingService, semanticSearchService);
     }
 
     @Test
