@@ -2,6 +2,8 @@ package offeria.material_service.controller.mcp;
 
 import offeria.material_service.dto.mcp.McpMaterialQueryRequest;
 import offeria.material_service.dto.mcp.McpMaterialToolResponse;
+import offeria.material_service.dto.mcp.McpMaterialTranslationResponse;
+import offeria.material_service.dto.mcp.McpMaterialSuggestionResponse;
 import offeria.material_service.service.mcp.McpMaterialToolsService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -109,4 +111,102 @@ class McpMaterialToolsControllerTest {
                 List.of()
         );
     }
+
+    @Test
+    void shouldFindSimilarMaterial() {
+        McpMaterialToolResponse response =
+                response(UUID.randomUUID(), "Steel Pipe");
+
+        when(toolsService.findSimilarMaterial("industrial pipe"))
+                .thenReturn(response);
+
+        var result = controller.findSimilarMaterial(
+                new McpMaterialQueryRequest("industrial pipe")
+        );
+
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertEquals(response, result.getBody());
+    }
+
+    @Test
+    void shouldGetMaterialTranslation() {
+        UUID id = UUID.randomUUID();
+
+        McpMaterialTranslationResponse response =
+                new McpMaterialTranslationResponse(
+                        id,
+                        "Steel Pipe",
+                        "بايب حديد",
+                        "أنبوب فولاذي",
+                        "PCS",
+                        "Piping",
+                        null,
+                        null,
+                        null,
+                        null,
+                        "Carbon steel",
+                        true
+                );
+
+        when(toolsService.getMaterialTranslation(id))
+                .thenReturn(Optional.of(response));
+
+        var result = controller.getMaterialTranslation(id);
+
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertEquals(response, result.getBody());
+    }
+
+    @Test
+    void shouldReturnAiSuggestion() {
+        McpMaterialSuggestionResponse response =
+                new McpMaterialSuggestionResponse(
+                        "industrial tubing",
+                        "Steel Pipe",
+                        "بايب حديد",
+                        "أنبوب فولاذي",
+                        "PCS",
+                        "Piping",
+                        "Carbon steel",
+                        false
+                );
+
+        when(toolsService.suggestMaterialTranslation(
+                "industrial tubing"
+        )).thenReturn(Optional.of(response));
+
+        var result = controller.suggestMaterialTranslation(
+                new McpMaterialQueryRequest("industrial tubing")
+        );
+
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertEquals(response, result.getBody());
+        assertFalse(result.getBody().approved());
+    }
+
+    @Test
+    void shouldRejectBlankSimilarRequest() {
+        var result = controller.findSimilarMaterial(
+                new McpMaterialQueryRequest(" ")
+        );
+
+        assertEquals(
+                HttpStatus.BAD_REQUEST,
+                result.getStatusCode()
+        );
+    }
+
+    @Test
+    void shouldRejectBlankSuggestionRequest() {
+        var result = controller.suggestMaterialTranslation(
+                new McpMaterialQueryRequest(" ")
+        );
+
+        assertEquals(
+                HttpStatus.BAD_REQUEST,
+                result.getStatusCode()
+        );
+    }
+
+
 }
