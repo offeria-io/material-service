@@ -4,11 +4,17 @@ import lombok.RequiredArgsConstructor;
 import offeria.material_service.domain.entity.Material;
 import offeria.material_service.domain.enums.MaterialStatus;
 import offeria.material_service.dto.mcp.McpMaterialToolResponse;
+import offeria.material_service.dto.mcp.McpMaterialTranslationResponse;
+import offeria.material_service.dto.mcp.McpMaterialSuggestionResponse;
+import offeria.material_service.dto.response.AiMaterialSuggestionResponse;
+import offeria.material_service.dto.response.MaterialTranslationKnowledgeResponse;
 import offeria.material_service.dto.response.MaterialMatchResponse;
 import offeria.material_service.dto.response.SemanticMaterialMatchResponse;
 import offeria.material_service.repository.MaterialRepository;
 import offeria.material_service.service.matching.MaterialMatchingService;
 import offeria.material_service.service.semantic.SemanticMaterialSearchService;
+import offeria.material_service.service.translation.MaterialTranslationKnowledgeService;
+import offeria.material_service.service.ai.MaterialAiSuggestionService;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -22,6 +28,8 @@ public class McpMaterialToolsService {
     private final MaterialRepository materialRepository;
     private final MaterialMatchingService matchingService;
     private final SemanticMaterialSearchService semanticSearchService;
+    private final MaterialTranslationKnowledgeService translationKnowledgeService;
+    private final MaterialAiSuggestionService aiSuggestionService;
 
     public Optional<McpMaterialToolResponse> getMaterial(UUID materialId) {
         if (materialId == null) {
@@ -102,6 +110,109 @@ public class McpMaterialToolsService {
         return McpMaterialToolResponse.unresolved(
                 "search_material",
                 value
+        );
+    }
+
+
+    public McpMaterialToolResponse findSimilarMaterial(String query) {
+        String value = requireQuery(query);
+
+        List<MaterialMatchResponse> similar =
+                matchingService.findSimilar(value);
+
+        if (!similar.isEmpty()) {
+            return aggregate(
+                    "find_similar_material",
+                    value,
+                    similar.stream()
+                            .map(match -> fromMatch(
+                                    "find_similar_material",
+                                    value,
+                                    match
+                            ))
+                            .toList()
+            );
+        }
+
+        List<SemanticMaterialMatchResponse> semantic =
+                semanticSearchService.search(value);
+
+        if (!semantic.isEmpty()) {
+            return aggregate(
+                    "find_similar_material",
+                    value,
+                    semantic.stream()
+                            .map(match -> fromSemantic(
+                                    "find_similar_material",
+                                    value,
+                                    match
+                            ))
+                            .toList()
+            );
+        }
+
+        return McpMaterialToolResponse.unresolved(
+                "find_similar_material",
+                value
+        );
+    }
+
+    public Optional<McpMaterialTranslationResponse> getMaterialTranslation(
+            UUID materialId
+    ) {
+        if (materialId == null) {
+            return Optional.empty();
+        }
+
+        return translationKnowledgeService
+                .findByMaterialId(materialId)
+                .filter(response ->
+                        response.status() == MaterialStatus.APPROVED
+                )
+                .map(this::fromTranslation);
+    }
+
+    public Optional<McpMaterialSuggestionResponse> suggestMaterialTranslation(
+            String query
+    ) {
+        String value = requireQuery(query);
+
+        return aiSuggestionService
+                .suggest(value)
+                .map(this::fromSuggestion);
+    }
+
+    private McpMaterialTranslationResponse fromTranslation(
+            MaterialTranslationKnowledgeResponse response
+    ) {
+        return new McpMaterialTranslationResponse(
+                response.materialId(),
+                response.canonicalEnglishName(),
+                response.preferredIraqiName(),
+                response.standardArabicName(),
+                response.unit(),
+                response.category(),
+                response.subCategory(),
+                response.manufacturer(),
+                response.brand(),
+                response.partNumber(),
+                response.specification(),
+                true
+        );
+    }
+
+    private McpMaterialSuggestionResponse fromSuggestion(
+            AiMaterialSuggestionResponse response
+    ) {
+        return new McpMaterialSuggestionResponse(
+                response.inputText(),
+                response.canonicalEnglishName(),
+                response.preferredIraqiName(),
+                response.standardArabicName(),
+                response.unit(),
+                response.category(),
+                response.specification(),
+                false
         );
     }
 

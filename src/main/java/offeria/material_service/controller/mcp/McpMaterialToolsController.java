@@ -3,6 +3,8 @@ package offeria.material_service.controller.mcp;
 import lombok.RequiredArgsConstructor;
 import offeria.material_service.dto.mcp.McpMaterialQueryRequest;
 import offeria.material_service.dto.mcp.McpMaterialToolResponse;
+import offeria.material_service.dto.mcp.McpMaterialTranslationResponse;
+import offeria.material_service.dto.mcp.McpMaterialSuggestionResponse;
 import offeria.material_service.service.mcp.McpMaterialToolsService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -39,4 +41,47 @@ public class McpMaterialToolsController {
                 toolsService.searchMaterial(request.query())
         );
     }
+
+    @PostMapping("/similar")
+    public ResponseEntity<McpMaterialToolResponse> findSimilarMaterial(
+            @RequestBody McpMaterialQueryRequest request
+    ) {
+        if (invalid(request)) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        return ResponseEntity.ok(
+                toolsService.findSimilarMaterial(request.query())
+        );
+    }
+
+    @GetMapping("/{materialId}/translation")
+    public ResponseEntity<McpMaterialTranslationResponse> getMaterialTranslation(
+            @PathVariable UUID materialId
+    ) {
+        return toolsService.getMaterialTranslation(materialId)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/suggest")
+    public ResponseEntity<McpMaterialSuggestionResponse> suggestMaterialTranslation(
+            @RequestBody McpMaterialQueryRequest request
+    ) {
+        if (invalid(request)) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        return toolsService
+                .suggestMaterialTranslation(request.query())
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
+    private boolean invalid(McpMaterialQueryRequest request) {
+        return request == null
+                || request.query() == null
+                || request.query().isBlank();
+    }
+
 }
